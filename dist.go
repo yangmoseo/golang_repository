@@ -1,31 +1,27 @@
 package main
 
 import (
+	"distance/distalgs"
+	"flag"
 	"fmt"
-	"math"
-	"os"
 	"strconv"
 	"strings"
 )
 
-//입력 : ./llmeter -origin 126.859706754,37.635076396 -dest 127.047839288,37.582547966
-//출럭 : 200
+// create custom flag
+type Coord []string
 
-func hsin(angle float64) float64 {
-	return math.Pow(math.Sin(angle/2), 2)
+func (arr *Coord) String() string {
+	return fmt.Sprintf("%v", *arr)
 }
 
-func calcDis(originLat, originLon, destLat, destLon float64) float64 {
-	r := 6378100.0
-	originLatRad := originLat * math.Pi / 180
-	originLonRad := originLon * math.Pi / 180
-	destLatRad := destLat * math.Pi / 180
-	destLonRad := destLon * math.Pi / 180
-	h := hsin(destLatRad-originLatRad) + math.Cos(originLatRad)*math.Cos(destLatRad)*hsin(destLonRad-originLonRad)
+func (arr *Coord) Set(s string) error {
+	*arr = strings.Split(s, ",")
+	return nil
 
-	return 2 * r * math.Asin(math.Sqrt(h))
 }
 
+// paring string to float64
 func selLatLon(inArray []string) ([]float64, error) {
 	var outArray []float64
 	var err error
@@ -44,33 +40,35 @@ func selLatLon(inArray []string) ([]float64, error) {
 	return outArray, err
 }
 
+//calculate distance and Print
+func printDis(origin []float64, dest []float64) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+			flag.Usage()
+		}
+	}()
+
+	//calc distance
+	fmt.Printf("Distance : %v merter", distalgs.CalcDis(origin[1], origin[0], dest[1], dest[0]))
+}
+
 func main() {
 
-	//get input args
-	argsWithoutProg := os.Args[1:]
+	var coord1 Coord
+	var coord2 Coord
+	flag.Var(&coord1, "origin", "[required] input origin coord : longitude,latitude")
+	flag.Var(&coord2, "dest", "[required] input destination coord : longitude,latitude")
+	flag.Parse()
 
-	// string join, replace -.,=
-	argsString := strings.Join(argsWithoutProg, "_")
-	customReplace := strings.NewReplacer("_.", ".", ",", "_", "=", "_")
-	argsString = customReplace.Replace(argsString)
+	fmt.Println("orogin:", coord1)
+	fmt.Println("dest:", coord2)
 
-	//-origin, -dest split
-	originIdx := strings.LastIndex(argsString, "-origin")
-	destIdx := strings.LastIndex(argsString, "-dest")
-	originString := (argsString[originIdx+len("-origin") : destIdx])[:]
-	destString := argsString[destIdx+len("-dest"):]
-
-	//lat, lon split
-	originArray := strings.Split(originString, "_")
-	destArray := strings.Split(destString, "_")
-
-	//sel lat, lon
-	origin, err1 := selLatLon(originArray)
-	dest, err2 := selLatLon(destArray)
+	origin, err1 := selLatLon(coord1)
+	dest, err2 := selLatLon(coord2)
 
 	if err1 == nil && err2 == nil {
-		//calc distance
-		fmt.Println(calcDis(origin[1], origin[0], dest[1], dest[0]))
+		printDis(origin, dest)
 	} else {
 		fmt.Println("Run time  error")
 	}
